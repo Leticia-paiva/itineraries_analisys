@@ -1,0 +1,12 @@
+
+version: '3.8'
+
+services:
+  duckdb-app:
+    build: .
+    env_file:
+      - my_env.env
+    volumes:
+      - /home/leticia/workspace/itineraries_ingestion_duckdb/gcp-service-account-key.json:/app/gcp-service-account-key.json
+    # Limit the memory usage for this service to 4 gigabytes.
+    mem_limit: 4g
