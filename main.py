@@ -1,8 +1,9 @@
 import duckdb
 import os
 import time 
+from google.cloud import bigquery
 
-def main():
+def convert_itineraries_from_csv_to_parquet_duck_db():
     duck_time = time.time() 
     key_id = os.environ.get('GCS_ACCESS_KEY_ID')
     private_key = os.environ.get('GCS_SECRET_ACCESS_KEY')
@@ -36,15 +37,41 @@ def main():
             ) TO '{parquet_path}' (FORMAT PARQUET);
         """)
         print("Successfully wrote parquet table!")
-        duck_time = time.time() - duck_time
+        duck_time = int(time.time() - duck_time)/60
 
-        print(f"Duckdb time: {duck_time:.2f} seconds")
+        print(f"Process time: {duck_time} minutes")
     except Exception as e:
         print(f"An error occurred: {e}")
         conn.close()
 
     conn.close()
     print("\nDuckDB connection closed.")
+
+def create_external_table_bigquery():
+    client = bigquery.Client()
+
+    project = os.environ.get('BIG_QUERY_PROJECT')
+    table_id = f"{project}.dw_itineraries.itineraries_duckdb"
+
+    external_source_format = "PARQUET"
+    source_uris = [
+        "gs://itineraries_airflow/bronze/itineraries_polars.parquet",
+    ]
+    print('Creating external table on big query')
+    external_config = bigquery.ExternalConfig(external_source_format)
+    external_config.source_uris = source_uris
+
+    table = bigquery.Table(table_id)
+    table.external_data_configuration = external_config
+    table = client.create_table(table)
+
+    print(
+        f"Created table with external source format {table.external_data_configuration.source_format}"
+    )
+
+def main():
+    convert_itineraries_from_csv_to_parquet_duck_db()
+    create_external_table_bigquery()
 
 if __name__ == "__main__":
     main()

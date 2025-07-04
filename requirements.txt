@@ -1,3 +1,4 @@
 duckdb
 fsspec
 gcsfs
+google-cloud-bigquery
