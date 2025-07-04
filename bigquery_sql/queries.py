@@ -1,4 +1,4 @@
-itineraries_duckdb_transformed_mv = """CREATE VIEW {project}.{dw}.itineraries_duckdb_transformed_mv
+itineraries_duckdb_transformed_mv = """CREATE OR REPLACE VIEW {project}.{dw}.itineraries_duckdb_transformed_mv
 AS
 SELECT
   legId,
