@@ -49,20 +49,22 @@ def convert_itineraries_from_csv_to_parquet_duck_db():
 
 def create_external_table_bigquery():
     client = bigquery.Client()
+    dw = "dw_itineraries"
 
     project = os.environ.get('BIG_QUERY_PROJECT')
-    table_id = f"{project}.dw_itineraries.itineraries_duckdb"
+    table_id = f"{project}.{dw}.itineraries_duckdb"
 
     external_source_format = "PARQUET"
     source_uris = [
         "gs://itineraries_airflow/bronze/itineraries_duckdb.parquet",
     ]
-    print('Creating external table on big query')
+    print(f'Creating external table {table_id} on big query')
     external_config = bigquery.ExternalConfig(external_source_format)
     external_config.source_uris = source_uris
 
     table = bigquery.Table(table_id)
     table.external_data_configuration = external_config
+    client.create_dataset(dw)
     table = client.create_table(table)
 
     print(
