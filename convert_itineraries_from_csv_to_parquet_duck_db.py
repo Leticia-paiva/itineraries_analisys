@@ -28,10 +28,8 @@ def main():
         """)
 
         print(f"Starting conversion from CSV: {csv_path} to parquet: {parquet_path}")
-
-        sql = f"DESCRIBE SELECT * FROM read_csv_auto('{csv_path}')"
-        conn.sql(sql).show()
-
+        conn.execute(f"SET memory_limit = '4GB';")
+        conn.execute(f"SET enable_progress_bar = true;")
         conn.execute(f"""
             COPY (
                 SELECT * FROM read_csv_auto('{csv_path}', HEADER=TRUE)
@@ -43,9 +41,10 @@ def main():
         print(f"Duckdb time: {duck_time:.2f} seconds")
     except Exception as e:
         print(f"An error occurred: {e}")
-    finally:
         conn.close()
-        print("\nDuckDB connection closed.")
+
+    conn.close()
+    print("\nDuckDB connection closed.")
 
 if __name__ == "__main__":
     main()
