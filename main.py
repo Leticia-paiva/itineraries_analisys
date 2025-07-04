@@ -55,7 +55,7 @@ def create_external_table_bigquery():
 
     external_source_format = "PARQUET"
     source_uris = [
-        "gs://itineraries_airflow/bronze/itineraries_polars.parquet",
+        "gs://itineraries_airflow/bronze/itineraries_duckdb.parquet",
     ]
     print('Creating external table on big query')
     external_config = bigquery.ExternalConfig(external_source_format)
