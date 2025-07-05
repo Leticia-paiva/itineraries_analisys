@@ -64,8 +64,8 @@ def create_external_table_bigquery():
 
     table = bigquery.Table(table_id)
     table.external_data_configuration = external_config
-    client.create_dataset(dw)
-    table = client.create_table(table)
+    client.create_dataset(dw, exists_ok=True)
+    table = client.create_table(table,exists_ok=True)
 
     print(
         f"Created table with external source format {table.external_data_configuration.source_format}"
