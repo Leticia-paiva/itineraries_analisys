@@ -4,7 +4,7 @@ CREATE OR REPLACE TABLE   {project}.{dw}.itineraries_transactional AS
   WITH table_with_splited_arrays AS(
     SELECT
       legId,
-      -- All other columns are selected. String columns (except legId) are transformed to arrays to deal with || in the csv.
+      -- Details columns of the flight (except legId) are transformed to arrays to deal with || in the csv.
       searchDate,
       flightDate,
       startingAirport,
@@ -19,18 +19,18 @@ CREATE OR REPLACE TABLE   {project}.{dw}.itineraries_transactional AS
       totalFare,
       seatsRemaining,
       totalTravelDistance,
-      SPLIT(segmentsDepartureTimeEpochSeconds, '||') AS segmentsDepartureTimeEpochSeconds_array,
-      SPLIT(segmentsDepartureTimeRaw, '||') AS segmentsDepartureTimeRaw_array,
-      SPLIT(segmentsArrivalTimeEpochSeconds, '||') AS segmentsArrivalTimeEpochSeconds_array,
-      SPLIT(segmentsArrivalTimeRaw, '||') AS segmentsArrivalTimeRaw_array,
-      SPLIT(segmentsArrivalAirportCode, '||') AS segmentsArrivalAirportCode_array,
-      SPLIT(segmentsDepartureAirportCode, '||') AS segmentsDepartureAirportCode_array,
-      SPLIT(segmentsAirlineName, '||') AS segmentsAirlineName_array,
-      SPLIT(segmentsAirlineCode, '||') AS segmentsAirlineCode_array,
-      SPLIT(segmentsEquipmentDescription, '||') AS segmentsEquipmentDescription_array,
-      SPLIT(segmentsDurationInSeconds, '||') AS segmentsDurationInSeconds_array,
-      SPLIT(segmentsDistance, '||') AS segmentsDistance_array,
-      SPLIT(segmentsCabinCode, '||') AS segmentsCabinCode_array
+      SPLIT(segmentsDepartureTimeEpochSeconds, '||') AS segmentsDepartureTimeEpochSeconds,
+      SPLIT(segmentsDepartureTimeRaw, '||') AS segmentsDepartureTimeRaw,
+      SPLIT(segmentsArrivalTimeEpochSeconds, '||') AS segmentsArrivalTimeEpochSeconds,
+      SPLIT(segmentsArrivalTimeRaw, '||') AS segmentsArrivalTimeRaw,
+      SPLIT(segmentsArrivalAirportCode, '||') AS segmentsArrivalAirportCode,
+      SPLIT(segmentsDepartureAirportCode, '||') AS segmentsDepartureAirportCode,
+      SPLIT(segmentsAirlineName, '||') AS segmentsAirlineName,
+      SPLIT(segmentsAirlineCode, '||') AS segmentsAirlineCode,
+      SPLIT(segmentsEquipmentDescription, '||') AS segmentsEquipmentDescription,
+      SPLIT(segmentsDurationInSeconds, '||') AS segmentsDurationInSeconds,
+      SPLIT(segmentsDistance, '||') AS segmentsDistance,
+      SPLIT(segmentsCabinCode, '||') AS segmentsCabinCode
     FROM
       {project}.{dw}.itineraries_duckdb 
     WHERE 
@@ -39,6 +39,52 @@ CREATE OR REPLACE TABLE   {project}.{dw}.itineraries_transactional AS
       AND destinationAirport is not null
       AND flightDate is not null 
       AND fareBasisCode is not null
+  ),
+  table_with_fixed_flights_struct as (
+    SELECT
+        legId,
+        searchDate,
+        flightDate,
+        startingAirport,
+        destinationAirport,
+        fareBasisCode,
+        travelDuration,
+        elapsedDays,
+        isBasicEconomy,
+        isRefundable,
+        isNonStop,
+        baseFare,
+        totalFare,
+        seatsRemaining,
+        totalTravelDistance,
+        ARRAY(
+          SELECT AS STRUCT
+            segmentsArrivalAirportCode,
+            segmentsDepartureAirportCode,
+            segmentsDepartureTimeEpochSeconds,
+            segmentsDepartureTimeRaw,
+            segmentsArrivalTimeEpochSeconds,
+            segmentsArrivalTimeRaw,
+            segmentsAirlineName,
+            segmentsAirlineCode,
+            segmentsEquipmentDescription,
+            segmentsDurationInSeconds,
+            segmentsDistance,
+            segmentsCabinCode
+        FROM UNNEST(segmentsArrivalAirportCode) segmentsArrivalAirportCode WITH OFFSET 
+        JOIN UNNEST(segmentsDepartureAirportCode) segmentsDepartureAirportCode WITH OFFSET USING(OFFSET)
+        JOIN UNNEST(segmentsDepartureTimeEpochSeconds) segmentsDepartureTimeEpochSeconds WITH OFFSET USING(OFFSET)
+        JOIN UNNEST(segmentsDepartureTimeRaw) segmentsDepartureTimeRaw WITH OFFSET USING(OFFSET)
+        JOIN UNNEST(segmentsArrivalTimeEpochSeconds) segmentsArrivalTimeEpochSeconds WITH OFFSET USING(OFFSET)
+        JOIN UNNEST(segmentsArrivalTimeRaw) segmentsArrivalTimeRaw WITH OFFSET USING(OFFSET)
+        JOIN UNNEST(segmentsAirlineName) segmentsAirlineName WITH OFFSET USING(OFFSET)
+        JOIN UNNEST(segmentsAirlineCode) segmentsAirlineCode WITH OFFSET USING(OFFSET)
+        JOIN UNNEST(segmentsEquipmentDescription) segmentsEquipmentDescription WITH OFFSET USING(OFFSET)
+        JOIN UNNEST(segmentsDurationInSeconds) segmentsDurationInSeconds WITH OFFSET USING(OFFSET)
+        JOIN UNNEST(segmentsDistance) segmentsDistance WITH OFFSET USING(OFFSET)
+        JOIN UNNEST(segmentsCabinCode) segmentsCabinCode WITH OFFSET USING(OFFSET)
+      ) flight_details
+    FROM table_with_splited_arrays
   )
   SELECT
       *,
@@ -52,7 +98,7 @@ CREATE OR REPLACE TABLE   {project}.{dw}.itineraries_transactional AS
           searchDate DESC
       ) = 1) AS is_current
   FROM
-    table_with_splited_arrays
+    table_with_fixed_flights_struct
   );
 """
 
