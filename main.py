@@ -3,6 +3,9 @@ import os
 import time 
 from google.cloud import bigquery
 
+bigquery_dw = "dw_itineraries"
+storage_bucket = "flight_itineraries_project"
+
 def convert_itineraries_from_csv_to_parquet_duck_db():
     duck_time = time.time() 
     key_id = os.environ.get('GCS_ACCESS_KEY_ID')
@@ -11,8 +14,8 @@ def convert_itineraries_from_csv_to_parquet_duck_db():
     if not key_id or not private_key:
         raise ValueError("unable to acess ACESS_KEY and SECRET")
 
-    csv_path = "gs://itineraries_airflow/itineraries.csv"
-    parquet_path = "gs://itineraries_airflow/bronze/itineraries_duckdb.parquet"
+    csv_path = f"gs://{storage_bucket}/itineraries.csv"
+    parquet_path = f"gs://{storage_bucket}/bronze/itineraries_raw.parquet"
 
     conn = duckdb.connect(database=':memory:')
 
@@ -49,14 +52,12 @@ def convert_itineraries_from_csv_to_parquet_duck_db():
 
 def create_external_table_bigquery():
     client = bigquery.Client()
-    dw = "dw_itineraries"
-
     project = os.environ.get('BIG_QUERY_PROJECT')
-    table_id = f"{project}.{dw}.itineraries_duckdb"
+    table_id = f"{project}.{bigquery_dw}.itineraries_raw"
 
     external_source_format = "PARQUET"
     source_uris = [
-        "gs://itineraries_airflow/bronze/itineraries_duckdb.parquet",
+        f"gs://{storage_bucket}/bronze/itineraries_raw.parquet",
     ]
     print(f'Creating external table {table_id} on big query')
     external_config = bigquery.ExternalConfig(external_source_format)
@@ -64,7 +65,7 @@ def create_external_table_bigquery():
 
     table = bigquery.Table(table_id)
     table.external_data_configuration = external_config
-    client.create_dataset(dw, exists_ok=True)
+    client.create_dataset(bigquery_dw, exists_ok=True)
     table = client.create_table(table,exists_ok=True)
 
     print(

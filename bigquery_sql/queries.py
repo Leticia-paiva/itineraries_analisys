@@ -32,7 +32,7 @@ CREATE OR REPLACE TABLE   {project}.{dw}.itineraries_transactional AS
       SPLIT(segmentsDistance, '||') AS segmentsDistance,
       SPLIT(segmentsCabinCode, '||') AS segmentsCabinCode
     FROM
-      {project}.{dw}.itineraries_duckdb 
+      {project}.{dw}.itineraries_raw 
     WHERE 
       searchDate is not null 
       AND startingAirport is not null
