@@ -34,11 +34,15 @@ CREATE OR REPLACE TABLE   {project}.{dw}.itineraries_transactional AS
     FROM
       {project}.{dw}.itineraries_raw 
     WHERE 
-      searchDate is not null 
+      legId is not null
+      AND searchDate is not null 
       AND startingAirport is not null
       AND destinationAirport is not null
       AND flightDate is not null 
-      AND fareBasisCode is not null
+      AND segmentsDepartureTimeRaw is not null
+      AND segmentsArrivalTimeRaw is not null
+      AND segmentsArrivalAirportCode is not null
+      AND segmentsDepartureAirportCode is not null
   ),
   table_with_fixed_flights_struct as (
     SELECT
@@ -130,10 +134,15 @@ view_prices_analisys = """
     isNonStop,
     seatsRemaining,
     totalFare,
-    segmentsDepartureTimeRaw_array,
-    segmentsArrivalTimeRaw_array,
-    segmentsArrivalAirportCode_array, 
-    segmentsDepartureAirportCode_array,
+    ARRAY(
+          SELECT AS STRUCT
+              segmentsDepartureTimeRaw,
+              segmentsArrivalTimeRaw,
+              segmentsArrivalAirportCode,
+              segmentsDepartureAirportCode
+          FROM
+              UNNEST(flight_details) AS s
+      ) AS flight_details,
     CASE
       WHEN totalFare > oldest_total_fare THEN TRUE
       ELSE FALSE
