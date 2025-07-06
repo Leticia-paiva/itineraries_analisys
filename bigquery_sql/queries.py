@@ -43,6 +43,10 @@ CREATE OR REPLACE TABLE   {project}.{dw}.itineraries_transactional AS
       AND segmentsArrivalTimeRaw is not null
       AND segmentsArrivalAirportCode is not null
       AND segmentsDepartureAirportCode is not null
+      AND totalFare is not null
+      AND isNonStop is not null
+      AND isBasicEconomy is not null
+      AND seatsRemaining is not null
   ),
   table_with_fixed_flights_struct as (
     SELECT
