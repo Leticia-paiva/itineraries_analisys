@@ -25,15 +25,55 @@ check_keys_and_duplicated_rows = """
         duplicate_count DESC, legId, formatted_search_date, formatted_flight_date, startingAirport, destinationAirport
 """
 
-itineraries_fact_table = """
-CREATE OR REPLACE TABLE dbt-project-459000.dw_itineraries.itineraries_fact_table AS(
-  WITH distinct_table as (
-    select distinct * from dbt-project-459000.dw_itineraries.itineraries_raw
-    )
-  SELECT
+itinerary_cleaned_table = """
+CREATE OR REPLACE TABLE dbt-project-459000.dw_itineraries.itinerary_cleaned_table AS
+SELECT  DISTINCT 
     legId,
     SAFE.PARSE_DATE('%Y-%m-%d', searchDate) AS searchDate, 
     SAFE.PARSE_DATE('%Y-%m-%d', flightDate) AS flightDate, 
+    startingAirport,
+    destinationAirport,
+    fareBasisCode,
+    travelDuration,
+    elapsedDays,
+    isBasicEconomy,
+    isRefundable,
+    isNonStop,
+    baseFare,
+    totalFare,
+    seatsRemaining,
+    totalTravelDistance,
+    segmentsDepartureTimeEpochSeconds,
+    segmentsDepartureTimeRaw,
+    segmentsArrivalTimeEpochSeconds,
+    segmentsArrivalTimeRaw,
+    segmentsArrivalAirportCode,
+    segmentsDepartureAirportCode,
+    segmentsAirlineName,
+    segmentsAirlineCode,
+    segmentsEquipmentDescription,
+    segmentsDurationInSeconds,
+    segmentsDistance,
+    segmentsCabinCode
+FROM dbt-project-459000.dw_itineraries.itineraries_raw
+WHERE
+    legId IS NOT NULL
+    AND SAFE.PARSE_DATE('%Y-%m-%d', searchDate) IS NOT NULL
+    AND SAFE.PARSE_DATE('%Y-%m-%d', flightDate) IS NOT NULL
+    AND startingAirport IS NOT NULL
+    AND destinationAirport IS NOT NULL
+    AND segmentsDepartureTimeRaw IS NOT NULL
+    AND segmentsArrivalTimeRaw IS NOT NULL
+    AND segmentsArrivalAirportCode IS NOT NULL
+    AND segmentsDepartureAirportCode IS NOT NULL;
+"""
+
+itineraries_fact_table = """
+CREATE OR REPLACE TABLE dbt-project-459000.dw_itineraries.itineraries_fact_table AS(
+  SELECT
+    legId,
+    searchDate, 
+    flightDate, 
     startingAirport,
     destinationAirport,
     fareBasisCode,
@@ -57,55 +97,38 @@ CREATE OR REPLACE TABLE dbt-project-459000.dw_itineraries.itineraries_fact_table
     ) = 1) AS is_current,
     FORMAT('%s_%s_%s_%s_%s',
         legId,
-        FORMAT_DATE('%Y%m%d', SAFE.PARSE_DATE('%Y-%m-%d', searchDate)),
-        FORMAT_DATE('%Y%m%d', SAFE.PARSE_DATE('%Y-%m-%d', flightDate)),
+        FORMAT_DATE('%Y%m%d', searchDate),
+        FORMAT_DATE('%Y%m%d', flightDate),
         startingAirport,
         destinationAirport
     ) AS itinerary_sk
     FROM
-      distinct_table 
-    WHERE 
-      legId IS NOT NULL
-      AND SAFE.PARSE_DATE('%Y-%m-%d', searchDate) IS NOT NULL
-      AND SAFE.PARSE_DATE('%Y-%m-%d', flightDate) IS NOT NULL
-      AND startingAirport IS NOT NULL
-      AND destinationAirport IS NOT NULL
-      AND segmentsDepartureTimeRaw IS NOT NULL
-      AND segmentsArrivalTimeRaw IS NOT NULL
-      AND segmentsArrivalAirportCode IS NOT NULL
-      AND segmentsDepartureAirportCode IS NOT NULL
-      AND totalFare IS NOT NULL
-      AND isNonStop IS NOT NULL
-      AND isBasicEconomy IS NOT NULL
-      AND seatsRemaining IS NOT NULL
+      dbt-project-459000.dw_itineraries.itinerary_cleaned_table 
   );
 """
 
 itinerary_dimension_segments ="""
 CREATE OR REPLACE TABLE dbt-project-459000.dw_itineraries.itinerary_dimension_segments AS
-WITH distinct_table as (
-select distinct * from dbt-project-459000.dw_itineraries.itineraries_raw
-)
 SELECT
   -- Surrogate key for the parent itinerary
   FORMAT('%s_%s_%s_%s_%s',
       t.legId,
-      FORMAT_DATE('%Y%m%d', SAFE.PARSE_DATE('%Y-%m-%d', t.searchDate)),
-      FORMAT_DATE('%Y%m%d', SAFE.PARSE_DATE('%Y-%m-%d', t.flightDate)),
+      FORMAT_DATE('%Y%m%d',t.searchDate),
+      FORMAT_DATE('%Y%m%d', t.flightDate),
       t.startingAirport,
       t.destinationAirport
   ) AS itinerary_sk,
   FORMAT('%s_%s_%s_%s_%s_%s',
     t.legId,
-    FORMAT_DATE('%Y%m%d', SAFE.PARSE_DATE('%Y-%m-%d', t.searchDate)),
-    FORMAT_DATE('%Y%m%d', SAFE.PARSE_DATE('%Y-%m-%d', t.flightDate)),
+    FORMAT_DATE('%Y%m%d', t.searchDate),
+    FORMAT_DATE('%Y%m%d', t.flightDate),
     t.startingAirport,
     t.destinationAirport,
     CAST(idx AS STRING)
   ) AS segment_sk,
   t.legId,
-  SAFE.PARSE_DATE('%Y-%m-%d', t.searchDate) AS searchDate, 
-  SAFE.PARSE_DATE('%Y-%m-%d', t.flightDate) AS flightDate, 
+  t.searchDate, 
+  t.flightDate, 
   t.startingAirport,
   t.destinationAirport,
   idx AS segment_index,
@@ -140,18 +163,7 @@ FROM (
     SPLIT(segmentsDurationInSeconds, '||') AS segmentsDurationInSeconds,
     SPLIT(segmentsDistance, '||') AS segmentsDistance,
     SPLIT(segmentsCabinCode, '||') AS segmentsCabinCode
-  FROM distinct_table
-  WHERE
-    legId IS NOT NULL
-    AND searchDate IS NOT NULL
-    AND flightDate IS NOT NULL
-    AND startingAirport IS NOT NULL
-    AND destinationAirport IS NOT NULL
-    AND segmentsDepartureTimeRaw IS NOT NULL
-    AND segmentsArrivalTimeRaw IS NOT NULL
-    AND segmentsArrivalAirportCode IS NOT NULL
-    AND segmentsDepartureAirportCode IS NOT NULL
-    -- Removed filters on non-array, non-key columns as they are no longer selected in the inner query
+  FROM dbt-project-459000.dw_itineraries.itinerary_cleaned_table
 ) AS t,
 UNNEST(t.segmentsDepartureTimeEpochSeconds) WITH OFFSET AS idx;
 """
