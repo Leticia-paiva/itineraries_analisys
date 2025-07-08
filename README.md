@@ -61,6 +61,8 @@ To run this project, follow these steps:
     ```
 
 ## Big query Data Flow and Transformations
+![image](https://github.com/user-attachments/assets/1b049106-6cd5-460f-aaee-769d54907b5a)
+
 
 The data flows through several stages, starting from a raw input table and progressing to cleaned tables, a fact table, a dimension table, and finally, analytical views.
 
